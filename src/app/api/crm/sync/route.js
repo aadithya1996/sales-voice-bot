@@ -4,24 +4,21 @@ import thoughtEmitter from '../../../../lib/thought-emitter';
 
 export async function POST() {
   try {
-    // Run sync in the background so the HTTP response is instant, and SSE streams the real-time details
-    syncAll(thoughtEmitter)
-      .then(res => {
-        console.log('CRM Sync complete:', res);
-      })
-      .catch(err => {
-        console.error('CRM Sync failed in background:', err);
-      });
+    // Wait for the sync to complete and return the result, which acts as a robust fallback for SSE
+    const result = await syncAll(thoughtEmitter);
+    console.log('CRM Sync complete:', result);
 
     return NextResponse.json({
       success: true,
-      message: 'CRM synchronization started in background.'
-    }, { status: 202 });
+      message: 'CRM synchronization completed.',
+      result
+    });
   } catch (err) {
-    console.error('Error initiating CRM sync:', err);
+    console.error('Error during CRM sync:', err);
     return NextResponse.json({
       success: false,
       error: err.message
     }, { status: 500 });
   }
 }
+

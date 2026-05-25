@@ -279,18 +279,18 @@ export default function Dashboard() {
     }
   };
 
-  // 2a. Auto-detect completed operations if SSE events were missed
+  // 2a. Auto-detect completed operations if SSE events were missed or page reloaded
   useEffect(() => {
-    // If we have deals but sync is still 'syncing', the SSE must have dropped
-    if (focusList.length > 0 && syncStatus === 'syncing') {
-      console.log('Auto-detect: Sync completed (deals found, SSE likely dropped)');
+    // If we have deals, sync is completed
+    if (focusList.length > 0 && (syncStatus === 'syncing' || syncStatus === 'idle')) {
+      console.log('Auto-detect: Sync completed (deals found in DB)');
       setSyncStatus('done');
       setSyncProgress({ progress: 100, status: 'Sync complete!' });
     }
     
-    // If we have classified deals but classify is still 'classifying'
+    // If we have classified deals, classification is completed
     const hasClassifications = focusList.some(d => d.classification !== null);
-    if (hasClassifications && classifyStatus === 'classifying') {
+    if (hasClassifications && (classifyStatus === 'classifying' || classifyStatus === 'idle')) {
       console.log('Auto-detect: Classification completed (classifications found)');
       setClassifyStatus('done');
       setClassifyProgress({ progress: 100, status: 'Classification complete!' });
@@ -347,7 +347,15 @@ export default function Dashboard() {
     setSyncStatus('syncing');
     setSyncProgress({ progress: 5, status: 'Initializing sync request...' });
     try {
-      await fetch('/api/crm/sync', { method: 'POST' });
+      const res = await fetch('/api/crm/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncStatus('done');
+        setSyncProgress({ progress: 100, status: 'Sync complete!' });
+        fetchFocusList();
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
     } catch (e) {
       setSyncStatus('error');
       setSyncProgress({ progress: 0, status: e.message });
@@ -358,7 +366,15 @@ export default function Dashboard() {
     setClassifyStatus('classifying');
     setClassifyProgress({ progress: 10, status: 'Starting deal analytics...' });
     try {
-      await fetch('/api/crm/classify', { method: 'POST' });
+      const res = await fetch('/api/crm/classify', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setClassifyStatus('done');
+        setClassifyProgress({ progress: 100, status: 'Classification complete!' });
+        fetchFocusList();
+      } else {
+        throw new Error(data.error || 'Classification failed');
+      }
     } catch (e) {
       setClassifyStatus('error');
       setClassifyProgress({ progress: 0, status: e.message });
