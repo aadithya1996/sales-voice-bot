@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "if [ \"$RAILWAY_SERVICE_NAME\" = \"ws-server\" ]; then npm run ws; else next start; fi",
     "ws": "node src/server/ws-server.js",
     "seed": "node scripts/seed-demo-data.js"
   },
