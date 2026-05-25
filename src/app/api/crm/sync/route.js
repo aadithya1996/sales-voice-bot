@@ -11,6 +11,9 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       message: 'CRM synchronization completed.',
+      pid: process.pid,
+      hostname: process.env.HOSTNAME,
+      uptime: process.uptime(),
       result
     });
   } catch (err) {
@@ -21,4 +24,5 @@ export async function POST() {
     }, { status: 500 });
   }
 }
+
 
