@@ -57,6 +57,84 @@ function getRepName() {
   return process.env.REP_NAME || 'Sales Rep';
 }
 
+/**
+ * Helper to save transcript turns.
+ * Writes to local SQLite as a fallback and POSTs to master Next.js app.
+ */
+async function saveTranscriptTurn(sessionId, speaker, content) {
+  try {
+    db.saveTranscriptTurn(sessionId, speaker, content);
+  } catch (localErr) {
+    console.error('Failed to write transcript turn to local DB:', localErr.message);
+  }
+
+  try {
+    const res = await fetch(`${NEXTJS_URL}/api/crm/transcript`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bridge-secret': BRIDGE_SECRET
+      },
+      body: JSON.stringify({ sessionId, speaker, content })
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.warn(`HTTP saveTranscriptTurn failed (${res.status}):`, text.substring(0, 200));
+    }
+  } catch (err) {
+    console.error('Failed to send transcript turn to Next.js API:', err.message);
+  }
+}
+
+/**
+ * Helper to queue CRM actions.
+ * Writes to local SQLite as a fallback and POSTs to master Next.js app.
+ */
+async function queueAction(sessionId, dealId, dealName, actionType, params, rationale) {
+  let actionId = null;
+  try {
+    actionId = db.queueAction(sessionId, dealId, dealName, actionType, params, rationale);
+  } catch (localErr) {
+    console.error('Failed to queue action in local DB:', localErr.message);
+  }
+
+  try {
+    const res = await fetch(`${NEXTJS_URL}/api/crm/actions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-bridge-secret': BRIDGE_SECRET
+      },
+      body: JSON.stringify({
+        sessionId,
+        dealId,
+        dealName,
+        actionType,
+        params,
+        rationale
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.actionId) {
+        console.log(`Action successfully queued in Next.js. Remote ID: ${data.actionId}`);
+        if (!actionId) {
+          actionId = data.actionId;
+        }
+      } else {
+        console.warn('Next.js API queueAction returned success: false', data);
+      }
+    } else {
+      const text = await res.text().catch(() => '');
+      console.warn(`HTTP queueAction failed (${res.status}):`, text.substring(0, 200));
+    }
+  } catch (err) {
+    console.error('Failed to send queueAction to Next.js API:', err.message);
+  }
+
+  return actionId || require('crypto').randomUUID();
+}
+
 function startWebSocketServer() {
   const app = express();
   const server = http.createServer(app);
@@ -66,7 +144,7 @@ function startWebSocketServer() {
     res.send({ status: 'ok', provider: llm.provider, isMock: llm.isMock });
   });
 
-  wss.on('connection', (ws, req) => {
+  wss.on('connection', async (ws, req) => {
     // Extract call_id from path: /llm-websocket/:call_id
     const urlParts = req.url.split('/');
     const callId = urlParts[urlParts.length - 1] || 'default_session';
@@ -74,12 +152,35 @@ function startWebSocketServer() {
     console.log(`Retell Custom LLM: Connected for Call ID/Session ID: ${callId}`);
     emitToDashboard('thinking', { text: 'Preparing today\'s pipeline review focus list...' });
 
-    // 1. Fetch classified focus list from database
+    // 1. Fetch classified focus list from Next.js or local SQLite database
     let focusList = [];
     try {
-      focusList = db.getClassifiedDeals();
+      console.log(`Fetching focus list from Next.js API: ${NEXTJS_URL}/api/crm/focus-list`);
+      const response = await fetch(`${NEXTJS_URL}/api/crm/focus-list`, {
+        headers: {
+          'x-bridge-secret': BRIDGE_SECRET
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.focusList)) {
+          focusList = data.focusList;
+          console.log(`Successfully fetched ${focusList.length} deals from Next.js API.`);
+        } else {
+          console.warn('Next.js API returned unsuccessful or invalid focus list:', data);
+          focusList = db.getClassifiedDeals();
+        }
+      } else {
+        console.warn(`Next.js API responded with status ${response.status}. Falling back to local database.`);
+        focusList = db.getClassifiedDeals();
+      }
     } catch (e) {
-      console.error('Error loading focus list for WS server:', e);
+      console.error('Failed to fetch focus list from Next.js API. Falling back to local database:', e.message);
+      try {
+        focusList = db.getClassifiedDeals();
+      } catch (localErr) {
+        console.error('Error loading focus list from local DB:', localErr);
+      }
     }
 
     const urgentCount = focusList.filter(d => d.classification?.priority >= 4).length;
@@ -159,7 +260,7 @@ Only output actions after the rep explicitly agrees or when you recommend it and
     }));
 
     emitToDashboard('speaking', { text: firstGreetingText, isPartial: false });
-    db.saveTranscriptTurn(callId, 'agent', firstGreetingText);
+    await saveTranscriptTurn(callId, 'agent', firstGreetingText);
 
     // Handle messages from Retell
     ws.on('message', async (messageData) => {
@@ -180,7 +281,7 @@ Only output actions after the rep explicitly agrees or when you recommend it and
           const userTranscript = message.transcript?.[message.transcript.length - 1]?.content;
           if (userTranscript) {
             emitToDashboard('speaking_user', { text: userTranscript });
-            db.saveTranscriptTurn(callId, 'user', userTranscript);
+            await saveTranscriptTurn(callId, 'user', userTranscript);
           }
           return;
         }
@@ -209,7 +310,7 @@ Only output actions after the rep explicitly agrees or when you recommend it and
           let responseId = message.response_id;
 
           try {
-            await llm.streamChatResponse(formattedHistory, (chunk) => {
+            await llm.streamChatResponse(formattedHistory, async (chunk) => {
               let textToOutput = '';
 
               // Buffer and parse [ACTION] tags so we don't stream raw JSON tags to the speaker
@@ -250,8 +351,8 @@ Only output actions after the rep explicitly agrees or when you recommend it and
                         const actionData = JSON.parse(jsonMatch[1].trim());
                         console.log('Parsed queued CRM action from voice bot:', actionData);
                         
-                        // Queue in SQLite db
-                        const actionId = db.queueAction(
+                        // Queue in SQLite db and Next.js master
+                        const actionId = await queueAction(
                           callId,
                           actionData.deal_id,
                           actionData.deal_name,
@@ -306,7 +407,7 @@ Only output actions after the rep explicitly agrees or when you recommend it and
 
             // Save agent message to history and DB
             conversationHistory.push({ role: 'assistant', content: currentResponseText });
-            db.saveTranscriptTurn(callId, 'agent', currentResponseText);
+            await saveTranscriptTurn(callId, 'agent', currentResponseText);
 
           } catch (streamError) {
             console.error('Error streaming LLM response in WebSocket:', streamError);
