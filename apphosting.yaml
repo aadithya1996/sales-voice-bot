@@ -1,0 +1,49 @@
+# apphosting.yaml
+# Firebase App Hosting Configuration for Pipeline Pilot Sales Voice Bot
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 5
+  concurrency: 80
+
+env:
+  # LLM Provider Configuration
+  - variable: LLM_PROVIDER
+    value: openai # 'openai' or 'gemini'
+    availability:
+      - RUNTIME
+      - BUILD
+
+  - variable: GEMINI_MODEL
+    value: gemini-2.5-flash
+    availability:
+      - RUNTIME
+
+  # Secret Mappings (Should be provisioned in Secret Manager)
+  - variable: HUBSPOT_ACCESS_TOKEN
+    secret: sales_bot_hubspot_token
+    availability:
+      - RUNTIME
+
+  - variable: RETELL_API_KEY
+    secret: sales_bot_retell_key
+    availability:
+      - RUNTIME
+
+  - variable: OPENAI_API_KEY
+    secret: sales_bot_openai_key
+    availability:
+      - RUNTIME
+
+  - variable: GEMINI_API_KEY
+    secret: sales_bot_gemini_key
+    availability:
+      - RUNTIME
+
+  # Local Tunnel WebSocket URL for Retell Callback (Configured dynamically in production)
+  - variable: RETELL_WS_URL
+    secret: sales_bot_websocket_url
+    availability:
+      - RUNTIME

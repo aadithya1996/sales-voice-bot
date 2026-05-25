@@ -1,0 +1,30 @@
+{
+  "name": "sales-voice-bot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "ws": "node src/server/ws-server.js",
+    "seed": "node scripts/seed-demo-data.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "@hubspot/api-client": "^13.5.0",
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "next": "^14.2.15",
+    "openai": "^6.39.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "retell-client-js-sdk": "^2.0.7",
+    "retell-sdk": "^5.27.0",
+    "uuid": "^14.0.0",
+    "ws": "^8.21.0"
+  }
+}

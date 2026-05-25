@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Pilot — Daily Review Summary</title>
+  <style>
+    body, table, td, p, h1, h2, h3, ul, li { margin: 0; padding: 0; }
+    body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; }
+      .stat-cell { display: block !important; width: 100% !important; margin-bottom: 8px !important; }
+      .spacer-cell { display: none !important; }
+    }
+  </style>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f7; padding: 20px 0; margin: 0;">
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td align="center">
+        <table role="presentation" class="container" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; width: 100%; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+          
+          <tr>
+            <td style="background: linear-gradient(135deg, #f5a623 0%, #d97706 100%); padding: 32px 24px; text-align: left;">
+              <h1 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0;">Pipeline Pilot</h1>
+              <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 8px 0 0;">Daily Pipeline Review Summary</p>
+              <p style="color: rgba(255,255,255,0.8); font-size: 12px; margin: 4px 0 0;">{{rep_name}} · {{date_long}}</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 32px 24px;">
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
+                <tr>
+                  <td class="stat-cell" style="background: #f8f9fa; border-radius: 10px; padding: 16px; width: 33.33%; text-align: center; vertical-align: top;">
+                    <p style="font-size: 22px; font-weight: 700; color: #d97706; margin: 0;">{{duration}}</p>
+                    <p style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0 0;">Duration</p>
+                  </td>
+                  <td class="spacer-cell" style="width: 8px;">&nbsp;</td>
+                  <td class="stat-cell" style="background: #f8f9fa; border-radius: 10px; padding: 16px; width: 33.33%; text-align: center; vertical-align: top;">
+                    <p style="font-size: 22px; font-weight: 700; color: #d97706; margin: 0;">{{deals_count}}</p>
+                    <p style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0 0;">Deals Reviewed</p>
+                  </td>
+                  <td class="spacer-cell" style="width: 8px;">&nbsp;</td>
+                  <td class="stat-cell" style="background: #f8f9fa; border-radius: 10px; padding: 16px; width: 33.33%; text-align: center; vertical-align: top;">
+                    <p style="font-size: 22px; font-weight: 700; color: #d97706; margin: 0;">{{actions_count}}</p>
+                    <p style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0 0;">Actions Queued</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
+                <tr><td style="padding-bottom: 12px;">
+                  <h2 style="font-size: 13px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 0;">Deals Discussed</h2>
+                </td></tr>
+                {{#if deals}}
+                  {{#each deals}}
+                  <tr>
+                    <td style="border-top: 1px solid #eee; padding: 10px 0; font-size: 14px; color: #444;">
+                      🏢 {{this}}
+                    </td>
+                  </tr>
+                  {{/each}}
+                {{else}}
+                  <tr>
+                    <td style="border-top: 1px solid #eee; padding: 10px 0; font-size: 14px; color: #999;">No deals were discussed</td>
+                  </tr>
+                {{/if}}
+                {{#if deals}}
+                <tr><td style="border-bottom: 1px solid #eee;">&nbsp;</td></tr>
+                {{/if}}
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
+                <tr><td style="padding-bottom: 12px;">
+                  <h2 style="font-size: 13px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 0;">Actions Agreed</h2>
+                </td></tr>
+                {{#if actions}}
+                  {{#each actions}}
+                  <tr><td style="height: 8px;">&nbsp;</td></tr>
+                  <tr>
+                    <td style="background: #f8f9fa; border-left: 3px solid #d97706; border-radius: 0 8px 8px 0; padding: 14px;">
+                      <p style="font-size: 13px; font-weight: 600; color: #333; margin: 0;">
+                        {{this.type_label}} {{#if this.is_completed}}✅{{else}}⏳{{/if}}
+                      </p>
+                      <p style="font-size: 13px; color: #666; margin: 4px 0 0;">{{this.deal_name}}</p>
+                      {{#if this.note_text}}
+                      <p style="font-size: 12px; color: #888; margin: 6px 0 0; font-style: italic;">&ldquo;{{this.note_text}}&rdquo;</p>
+                      {{/if}}
+                      {{#if this.target_stage}}
+                      <p style="font-size: 12px; color: #888; margin: 6px 0 0;">Target: {{this.target_stage}}</p>
+                      {{/if}}
+                    </td>
+                  </tr>
+                  {{/each}}
+                {{else}}
+                  <tr><td style="color: #999;">No actions were queued.</td></tr>
+                {{/if}}
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
+                <tr><td style="padding-bottom: 12px;">
+                  <h2 style="font-size: 13px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 0;">CRM Write-Back Status</h2>
+                </td></tr>
+                <tr>
+                  <td style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px;">
+                    <p style="font-size: 14px; color: #15803d; margin: 0;">
+                      <strong>{{completed_actions}} of {{total_actions}}</strong> actions written back to HubSpot CRM.
+                      {{#if has_pending}}
+                      <br><span style="font-size: 13px; color: #22c55e;">{{pending_actions}} action(s) pending.</span>
+                      {{else}}
+                      <br><span style="font-size: 13px; color: #22c55e;">All actions synced successfully.</span>
+                      {{/if}}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              {{#if rapport}}
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 28px;">
+                <tr><td style="padding-bottom: 12px;">
+                  <h2 style="font-size: 13px; color: #333; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 0;">Team Pulse</h2>
+                </td></tr>
+                <tr>
+                  <td style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 14px;">
+                    <p style="font-size: 14px; color: #92400e; margin: 0;">
+                      🌟 {{rep_name}} shared team updates, shout-outs, and day highlights during the rapport check-in. Team morale appears positive.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              {{/if}}
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #f8f9fa; padding: 20px 24px; text-align: center; border-top: 1px solid #eee;">
+              <p style="font-size: 12px; color: #999; margin: 0;">
+                Sent by <strong>Pipeline Pilot AI Assistant</strong>
+              </p>
+              <p style="font-size: 11px; color: #bbb; margin: 6px 0 0;">
+                This is an automated summary of {{rep_name}}'s daily pipeline review.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
