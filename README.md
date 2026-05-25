@@ -1,20 +1,16 @@
-<![CDATA[<div align="center">
-
 # 🚀 Pipeline Pilot
 
 ### AI-Powered Daily Sales Review Voice Assistant
 
-_Your morning pipeline co-pilot — syncs your CRM, classifies every deal with AI, and walks you through priorities via a natural voice conversation._
+> Your morning pipeline co-pilot — syncs your CRM, classifies every deal with AI, and walks you through priorities via a natural voice conversation.
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org)
-[![Retell AI](https://img.shields.io/badge/Voice-Retell_AI-6C5CE7)](https://retellai.com)
-[![HubSpot](https://img.shields.io/badge/CRM-HubSpot-FF7A59?logo=hubspot)](https://hubspot.com)
-[![OpenAI](https://img.shields.io/badge/LLM-OpenAI-412991?logo=openai)](https://openai.com)
-[![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4?logo=google)](https://deepmind.google/technologies/gemini/)
-[![SQLite](https://img.shields.io/badge/DB-SQLite-003B57?logo=sqlite)](https://sqlite.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-</div>
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![Retell AI](https://img.shields.io/badge/Voice-Retell_AI-6C5CE7)
+![HubSpot](https://img.shields.io/badge/CRM-HubSpot-FF7A59?logo=hubspot)
+![OpenAI](https://img.shields.io/badge/LLM-OpenAI-412991?logo=openai)
+![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4?logo=google)
+![SQLite](https://img.shields.io/badge/DB-SQLite-003B57?logo=sqlite)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
 
@@ -55,7 +51,7 @@ The result: **a morning routine that takes 5 minutes instead of 30**, with zero 
 ## ✨ What It Does
 
 | Feature | Description |
-|---|---|
+|---------|-------------|
 | **CRM Sync** | One-click full sync of HubSpot contacts, deals, notes, and pipeline stages into a local SQLite database |
 | **AI Classification** | GPT-4o / Gemini classifies every deal into categories (URGENT, AT_RISK, CLOSE_READY, CELEBRATE, etc.) with priority scores 1–5 |
 | **Voice Review** | Retell AI-powered voice call that walks through prioritized deals in a natural conversation |
@@ -111,7 +107,7 @@ The result: **a morning routine that takes 5 minutes instead of 30**, with zero 
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Voice ↔ Action Pipeline
+### Voice → Action Pipeline
 
 During the voice call, the AI assistant embeds structured `[ACTION]...[/ACTION]` tags in its response stream. The WebSocket server parses these tags in real-time, extracts the JSON payload, and:
 
@@ -173,7 +169,7 @@ After the call, the rep reviews and executes actions — each one hits the HubSp
 Pipeline Pilot runs as **two processes**:
 
 | Process | Port | Role |
-|---|---|---|
+|---------|------|------|
 | **Next.js App** | `3000` | Dashboard UI, API routes, SSE event stream |
 | **WebSocket Server** | `8080` | Retell Custom LLM protocol, voice conversation logic, action parsing |
 
@@ -230,7 +226,7 @@ src/
 ### Key Design Decisions
 
 | Decision | Rationale |
-|---|---|
+|----------|-----------|
 | **SQLite (file-based)** | Both the Next.js API routes and the standalone WS server share the same `.db` file. No external database needed. Zero-config local dev. |
 | **Dual-process (Next.js + Express WS)** | Retell requires a raw WebSocket endpoint for its Custom LLM protocol. Next.js doesn't natively support persistent WebSocket connections in API routes, so we run a separate Express server. |
 | **Bridge pattern (WS → SSE)** | The WS server forwards events to Next.js via HTTP POST, which then broadcasts to all SSE subscribers. This decouples voice processing from UI updates. |
@@ -294,7 +290,7 @@ sequenceDiagram
 ### Database Schema
 
 | Table | Purpose |
-|---|---|
+|-------|---------|
 | `contacts` | Synced HubSpot contacts (name, email, phone, company) |
 | `deals` | Synced deals with stage, amount, days-in-stage |
 | `notes` | Deal-associated CRM notes |
@@ -330,7 +326,7 @@ sales-voice-bot/
 
 ### Prerequisites
 
-- **Node.js** ≥ 18.0.0
+- **Node.js** >= 18.0.0
 - **npm** (comes with Node.js)
 - A **HubSpot** Private App token (optional — mock mode works without it)
 - A **Retell AI** API key (optional — mock mode works without it)
@@ -382,16 +378,16 @@ No API keys? No problem. Pipeline Pilot runs fully in mock mode:
 ## 🔐 Environment Variables
 
 | Variable | Required | Description |
-|---|---|---|
-| `HUBSPOT_ACCESS_TOKEN` | No* | HubSpot Private App token. Required scopes: `crm.objects.contacts.read/write`, `crm.objects.deals.read/write`, `crm.schemas.deals.read`, `crm.objects.owners.read` |
-| `RETELL_API_KEY` | No* | Retell AI API key from [dashboard.retellai.com](https://dashboard.retellai.com) |
+|----------|----------|-------------|
+| `HUBSPOT_ACCESS_TOKEN` | No\* | HubSpot Private App token. Required scopes: `crm.objects.contacts.read/write`, `crm.objects.deals.read/write`, `crm.schemas.deals.read`, `crm.objects.owners.read` |
+| `RETELL_API_KEY` | No\* | Retell AI API key from [dashboard.retellai.com](https://dashboard.retellai.com) |
 | `RETELL_AGENT_ID` | No | Auto-created on first run, or set manually |
-| `OPENAI_API_KEY` | No* | OpenAI API key for GPT-4o classification and voice conversation |
-| `GEMINI_API_KEY` | No* | Google Gemini API key (alternative to OpenAI) |
+| `OPENAI_API_KEY` | No\* | OpenAI API key for GPT-4o classification and voice conversation |
+| `GEMINI_API_KEY` | No\* | Google Gemini API key (alternative to OpenAI) |
 | `LLM_PROVIDER` | No | `openai` (default) or `gemini` — auto-detected from available keys |
 | `PORT` | No | Next.js port (default: `3000`) |
 | `WS_PORT` | No | WebSocket server port (default: `8080`) |
-| `RETELL_WS_URL` | Yes** | Public WebSocket URL for Retell callback (e.g., `wss://your-domain/llm-websocket`) |
+| `RETELL_WS_URL` | Yes\*\* | Public WebSocket URL for Retell callback (e.g., `wss://your-domain/llm-websocket`) |
 | `BRIDGE_SECRET` | Yes | Random secret for internal WS→Next.js event bridge authentication |
 | `FIREBASE_PROJECT_ID` | No | Firebase project ID (for optional Firebase deployment) |
 
@@ -408,14 +404,14 @@ Pipeline Pilot requires **two Railway services** (dual-process architecture):
 ### Service 1: Next.js App
 
 | Setting | Value |
-|---|---|
+|---------|-------|
 | **Start Command** | `npm run build && npm start` |
 | **Port** | `3000` |
 
 ### Service 2: WebSocket Server
 
 | Setting | Value |
-|---|---|
+|---------|-------|
 | **Start Command** | `npm run ws` |
 | **Port** | `8080` |
 
@@ -437,7 +433,7 @@ Pipeline Pilot requires **two Railway services** (dual-process architecture):
 ### CRM Operations
 
 | Method | Endpoint | Description |
-|---|---|---|
+|--------|----------|-------------|
 | `POST` | `/api/crm/sync` | Sync HubSpot → SQLite |
 | `POST` | `/api/crm/classify` | Run AI classification on synced deals |
 | `GET` | `/api/crm/deals` | Get classified deal focus list |
@@ -446,21 +442,21 @@ Pipeline Pilot requires **two Railway services** (dual-process architecture):
 ### Voice / Retell
 
 | Method | Endpoint | Description |
-|---|---|---|
+|--------|----------|-------------|
 | `POST` | `/api/retell/call` | Create a new Retell web call |
 | `POST` | `/api/retell/setup` | Create/update the Retell agent |
 
 ### Events
 
 | Method | Endpoint | Description |
-|---|---|---|
+|--------|----------|-------------|
 | `GET` | `/api/stream` | SSE event stream for live dashboard updates |
 | `POST` | `/api/events/forward` | Internal bridge endpoint (WS → Next.js) |
 
 ### Demo
 
 | Method | Endpoint | Description |
-|---|---|---|
+|--------|----------|-------------|
 | `POST` | `/api/demo/seed` | Seed demo contacts & deals into HubSpot |
 | `POST` | `/api/demo/cleanup` | Remove seeded demo records |
 
@@ -495,11 +491,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ---
 
-<div align="center">
-
 **Built with ❤️ by [Aadithya](https://github.com/aadithya1996)**
 
 _Pipeline Pilot — Because your CRM should talk to you, not the other way around._
-
-</div>
-]]>
