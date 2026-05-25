@@ -1,5 +1,8 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import db from '../../../../lib/database';
+
 
 // GET: Retrieve all queued actions for a session
 export async function GET(req) {
