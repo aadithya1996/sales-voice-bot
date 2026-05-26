@@ -316,6 +316,85 @@ Ensure your response is valid JSON matching this schema:
       }, 70); // 70ms per word
     });
   }
+
+  async analyzeTranscript(transcript, actions) {
+    const transcriptText = transcript.map(t => `${t.speaker === 'agent' ? 'Alex' : 'Rep'}: ${t.content}`).join('\n');
+    
+    const systemPrompt = `You are a Sales Operations intelligence system. Analyze the following daily review call transcript and list of queued actions.
+    
+TRANSCRIPT:
+${transcriptText}
+
+QUEUED ACTIONS:
+${JSON.stringify(actions, null, 2)}
+
+TASK:
+Analyze the transcript and generate:
+1. 'repSentiment': Summarize how the sales rep felt during the conversation (e.g. tone, confidence level, energy, challenges faced). Keep it to 1-2 sentences.
+2. 'managerNotes': Identify any specific instructions, messages, requests, or updates they explicitly conveyed to or wanted shared with their manager (e.g. discount approvals, blocker assistance). If none, state "No specific instructions conveyed."
+3. 'generalUpdates': Extract a list of any general updates, achievements, team shout-outs, team pulse details, or general notes mentioned by the rep that are NOT specific to any individual deal. If none, return an empty array.
+4. 'dealSummaries': A mapping where each key is a deal name and the value is a consolidated, summarized message (1-2 sentences) of what was discussed and decided during the call for that deal. This summary must combine all actions and conversation points into one concise update.
+
+Ensure your response is valid JSON matching this schema:
+{
+  "repSentiment": "string",
+  "managerNotes": "string",
+  "generalUpdates": ["string"],
+  "dealSummaries": {
+    "Deal Name 1": "string",
+    "Deal Name 2": "string"
+  }
+}`;
+
+    if (this.isMock) {
+      return this._mockAnalysis(transcript, actions);
+    }
+
+    try {
+      if (this.provider === 'openai') {
+        const response = await this.openai.chat.completions.create({
+          model: process.env.OPENAI_MODEL || 'gpt-4o',
+          messages: [
+            { role: 'system', content: 'You are a CRM transcript analysis assistant that outputs valid JSON conforming to the requested schema.' },
+            { role: 'user', content: systemPrompt }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        return JSON.parse(response.choices[0].message.content);
+      } else if (this.provider === 'gemini') {
+        const ai = await this._getGeminiClient();
+        const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+        
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: systemPrompt,
+          config: {
+            responseMimeType: 'application/json',
+            systemInstruction: 'You are a CRM transcript analysis assistant that outputs valid JSON conforming to the requested schema.'
+          }
+        });
+        return JSON.parse(response.text);
+      }
+    } catch (err) {
+      console.error('Error during LLM transcript analysis:', err);
+      return this._mockAnalysis(transcript, actions);
+    }
+  }
+
+  _mockAnalysis(transcript, actions) {
+    // Return realistic mock analysis
+    return {
+      repSentiment: "Energetic and collaborative, despite some pipeline stress.",
+      managerNotes: "Highlighted that the team is buzzing about the new release, and mentioned an upside-down demo in standup. Requested manager attention on the legal review blocker for Acme.",
+      generalUpdates: [
+        "Intern tried to demo upside down in standup; team is buzzing about the release."
+      ],
+      dealSummaries: {
+        "TechCorp Enterprise Platform": "Discussed integration doc delays. Flagged risk due to being stale in stage for 12 days.",
+        "Acme Industries Data Suite": "Marcus raised concerns over data residency clause. Added a CRM note and queued stage move to Closed Won once signature is completed."
+      }
+    };
+  }
 }
 
 module.exports = new LLMService();

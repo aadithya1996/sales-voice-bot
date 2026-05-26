@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 export default function PostCallReview({
   transcript,
   actions,
+  analysis,
   onExecuteAll,
   onRemoveAction,
   executionProgress,
@@ -31,6 +32,7 @@ export default function PostCallReview({
       case 'crm_stage_move': return '➔';
       case 'crm_note': return '✍';
       case 'crm_flag_risk': return '⚠️';
+      case 'crm_general_update': return '📢';
       default: return '●';
     }
   };
@@ -52,6 +54,8 @@ export default function PostCallReview({
         return `This adds a contextual note to the deal record in HubSpot so the team has visibility on recent discussions.`;
       case 'crm_flag_risk':
         return `This marks the deal as at-risk in HubSpot with a clear rationale, triggering any configured alert workflows.`;
+      case 'crm_general_update':
+        return `This is a general review note captured from your morning standup rapport session.`;
       default:
         return action.rationale || 'Queued from voice conversation.';
     }
@@ -239,6 +243,36 @@ export default function PostCallReview({
                   ))}
                 </div>
               )}
+
+              {/* Rep Sentiment & Manager Updates */}
+              <div style={{
+                background: 'rgba(245, 166, 35, 0.03)',
+                border: '1px solid rgba(245, 166, 35, 0.12)',
+                borderRadius: '10px',
+                padding: '16px',
+                marginTop: '8px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  🗣️ Sentiment & Manager updates
+                </span>
+                
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'block' }}>Rep Sentiment</span>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: '2px 0 0 0', lineHeight: 1.4 }}>
+                    {analysis?.repSentiment || "Energetic and collaborative, despite some pipeline stress."}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'block' }}>Notes to Manager</span>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: '2px 0 0 0', lineHeight: 1.4 }}>
+                    {analysis?.managerNotes || "No specific instructions conveyed."}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -30,11 +30,18 @@ export default function SetupModal({
 
   // Auto-advance steps when operations complete
   useEffect(() => {
-    // Step 1 (index 0): Rep Profile — auto-complete if name exists
-    if (repName && !completedSteps.includes(0)) {
+    // Step 1 (index 0): Rep Profile — auto-complete if name exists and matches local input
+    const hasRep = !!(repName && repName.trim());
+    const isMatching = localName.trim() === repName;
+    const isSaved = hasRep && isMatching;
+
+    if (isSaved && !completedSteps.includes(0)) {
       setCompletedSteps(prev => [...prev, 0]);
       if (currentStep === 0) setCurrentStep(1);
+    } else if (!isSaved && completedSteps.includes(0)) {
+      setCompletedSteps(prev => prev.filter(s => s !== 0));
     }
+    
     if (clearStatus === 'done' && !completedSteps.includes(1)) {
       setCompletedSteps(prev => [...prev, 1]);
       setCurrentStep(2);
@@ -50,7 +57,7 @@ export default function SetupModal({
     if (classifyStatus === 'done' && !completedSteps.includes(4)) {
       setCompletedSteps(prev => [...prev, 4]);
     }
-  }, [repName, clearStatus, seedStatus, syncStatus, classifyStatus, completedSteps, currentStep]);
+  }, [repName, localName, clearStatus, seedStatus, syncStatus, classifyStatus, completedSteps, currentStep]);
 
   // Sync local inputs when props change
   useEffect(() => {
@@ -65,6 +72,7 @@ export default function SetupModal({
     }
   };
 
+  const isRepSaved = !!(repName && localName.trim() === repName);
   const isRepValid = localName.trim().length > 0;
   const isReady = focusList.length > 0 && classifyStatus === 'done';
   const completedCount = completedSteps.length;
@@ -218,7 +226,7 @@ export default function SetupModal({
         <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {steps.map((step, idx) => {
             const isActive = currentStep === idx;
-            const isCompleted = completedSteps.includes(idx);
+            const isCompleted = step.isRepStep ? isRepSaved : completedSteps.includes(idx);
             const showProgress = step.status === 'syncing' || step.status === 'classifying' || step.status === 'seeding' || step.status === 'clearing';
             
             return (
@@ -291,14 +299,14 @@ export default function SetupModal({
                     </div>
                     
                     <p style={{ 
-                      fontSize: '0.82rem', 
-                      color: 'var(--text-secondary)', 
-                      lineHeight: 1.5,
-                      marginBottom: step.isRepStep || showProgress ? '12px' : '0'
-                    }}>
+                       fontSize: '0.82rem', 
+                       color: 'var(--text-secondary)', 
+                       lineHeight: 1.5,
+                       marginBottom: step.isRepStep || showProgress ? '12px' : '0'
+                     }}>
                       {step.description}
                     </p>
-
+ 
                     {/* Rep Profile Input */}
                     {step.isRepStep && (
                       <div style={{ marginTop: '10px', maxWidth: '320px' }}>
@@ -309,7 +317,6 @@ export default function SetupModal({
                           onChange={(e) => setLocalName(e.target.value)}
                           placeholder="Elon Gates"
                           style={inputStyle}
-                          disabled={isCompleted}
                         />
                       </div>
                     )}

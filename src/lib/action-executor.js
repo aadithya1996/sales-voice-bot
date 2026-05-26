@@ -49,6 +49,10 @@ async function executeAction(actionId, emitter = null) {
         resultDetails = 'Flagged risk and added note';
         break;
 
+      case 'crm_general_update':
+        resultDetails = 'Captured in general call report';
+        break;
+
       default:
         throw new Error(`Unsupported action type: ${action.action_type}`);
     }

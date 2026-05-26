@@ -43,6 +43,7 @@ export default function Dashboard() {
   const [currentDealIndex, setCurrentDealIndex] = useState(0);
   const [volume, setVolume] = useState(1); // 0 to 10 for audio visualizer
   const [llmThoughts, setLlmThoughts] = useState([]);
+  const [analysis, setAnalysis] = useState(null);
   const [activeThought, setActiveThought] = useState('Welcome back. Press "Start Pipeline Review" to initiate voice walk-through.');
   
   // Live agent text being typed (partial utterance during LLM streaming)
@@ -136,6 +137,14 @@ export default function Dashboard() {
             }
             break;
 
+          case 'seed_progress':
+            setSeedStatus(data.progress === 100 ? 'done' : 'seeding');
+            setSeedProgress({ progress: data.progress, status: data.status });
+            if (data.progress === 100) {
+              fetchFocusList();
+            }
+            break;
+
           case 'clear_progress':
             setClearStatus(data.progress === 100 ? 'done' : 'clearing');
             setClearProgress({ progress: data.progress, status: data.status });
@@ -143,6 +152,7 @@ export default function Dashboard() {
               // Reset seed status so user can seed fresh data
               setSeedStatus('idle');
               setSeedProgress({ progress: 0, status: '' });
+              setFocusList([]);
             }
             break;
 
@@ -335,6 +345,8 @@ export default function Dashboard() {
         setSeedProgress({ progress: 100, status: 'Demo data seeded successfully!' });
         fetchFocusList();
         setTimeout(() => setSeedStatus('idle'), 3000);
+      } else {
+        throw new Error(data.error || 'Seeding failed');
       }
     } catch (e) {
       setSeedStatus('idle');
@@ -453,7 +465,94 @@ export default function Dashboard() {
     }
   };
 
-  const handleEndCall = () => {
+  const runSessionAnalysis = async (sessionTranscript, sessionActions) => {
+    setAppState('analyzing');
+    let analysisResult = null;
+    try {
+      const res = await fetch('/api/crm/transcript/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: sessionTranscript, actions: sessionActions })
+      });
+      const data = await res.json();
+      if (data.success) {
+        analysisResult = data.analysis;
+        setAnalysis(data.analysis);
+      }
+    } catch (e) {
+      console.error('Failed to analyze session transcript:', e);
+    }
+
+    // Default mock analysis fallback if request fails or has no output
+    if (!analysisResult) {
+      analysisResult = {
+        repSentiment: "Energetic and collaborative, despite some pipeline stress.",
+        managerNotes: "No specific instructions conveyed.",
+        generalUpdates: ["Review session completed successfully."],
+        dealSummaries: {}
+      };
+      setAnalysis(analysisResult);
+    }
+
+    // Capture and queue any general updates as general action items
+    const finalDecisions = [...sessionActions];
+    if (analysisResult.generalUpdates && analysisResult.generalUpdates.length > 0) {
+      for (let i = 0; i < analysisResult.generalUpdates.length; i++) {
+        const updateText = analysisResult.generalUpdates[i];
+        const generalAction = {
+          id: `act_general_${i}_${Date.now()}`,
+          deal_id: 'general',
+          deal_name: 'General / Non-Deal Updates',
+          action_type: 'crm_general_update',
+          params: { note_text: updateText },
+          rationale: 'Extracted from general updates',
+          status: 'pending'
+        };
+
+        // Queue in database via API POST
+        try {
+          await fetch('/api/crm/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              dealId: 'general',
+              dealName: 'General / Non-Deal Updates',
+              actionType: 'crm_general_update',
+              params: { note_text: updateText },
+              rationale: 'Extracted from general updates'
+            })
+          });
+        } catch (e) {
+          console.warn('Could not queue general update in DB:', e);
+        }
+
+        finalDecisions.push(generalAction);
+      }
+      setDecisions(finalDecisions);
+    }
+
+    // Save final compiled session data to localStorage
+    try {
+      localStorage.setItem('pipeline_pilot_last_session', JSON.stringify({
+        sessionId,
+        transcript: sessionTranscript,
+        actions: finalDecisions,
+        callStats: {
+          duration: callDuration,
+          dealsReviewed: focusList.length,
+          actionsDecided: finalDecisions.length
+        },
+        repName,
+        analysis: analysisResult,
+        endedAt: new Date().toISOString()
+      }));
+    } catch (e) {}
+
+    setAppState('review');
+  };
+
+  const handleEndCall = async () => {
     if (retellClientRef.current) {
       try {
         retellClientRef.current.stopCall();
@@ -465,25 +564,8 @@ export default function Dashboard() {
     
     setCallStatus('ended');
     
-    // Save session data to localStorage for the email preview page
-    try {
-      localStorage.setItem('pipeline_pilot_last_session', JSON.stringify({
-        sessionId,
-        transcript,
-        actions: decisions,
-        callStats: {
-          duration: callDuration,
-          dealsReviewed: focusList.length,
-          actionsDecided: decisions.length
-        },
-        repName,
-        endedAt: new Date().toISOString()
-      }));
-    } catch (e) {}
-    
-    setTimeout(() => {
-      setAppState('review');
-    }, 1000);
+    // Run the analysis and transitions
+    await runSessionAnalysis(transcript, decisions);
   };
 
   const handleMuteToggle = () => {
@@ -606,6 +688,10 @@ export default function Dashboard() {
     setTimeout(() => {
       setTranscript(prev => [...prev, { speaker: 'agent', content: `Great session today, ${rep}. You crushed it. I've queued 3 CRM updates and we covered the pipeline. Talk to you tomorrow!`, timestamp: new Date().toISOString() }]);
     }, 46500);
+
+    setTimeout(() => {
+      handleEndCall();
+    }, 49500);
   };
 
   // 5. Execute all queued CRM actions
@@ -801,10 +887,38 @@ export default function Dashboard() {
           </div>
         )}
 
+        {appState === 'analyzing' && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '60vh',
+            gap: '24px',
+            color: 'var(--text-primary)'
+          }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              border: '3px solid rgba(245, 166, 35, 0.1)',
+              borderTop: '3px solid var(--accent-primary)',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>Analyzing Review Transcript</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '360px', lineHeight: 1.5 }}>
+                Alex is generating your pipeline summary, extracting action items, and preparing the manager update...
+              </p>
+            </div>
+          </div>
+        )}
+
         {appState === 'review' && (
           <PostCallReview
             transcript={transcript}
             actions={decisions}
+            analysis={analysis}
             onExecuteAll={handleExecuteAllActions}
             onRemoveAction={handleRemoveAction}
             executionProgress={executionProgress}

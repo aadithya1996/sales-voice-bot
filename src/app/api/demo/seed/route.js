@@ -16,8 +16,8 @@ import thoughtEmitter from '../../../../lib/thought-emitter';
  * 6. Returns success with deal summary
  */
 export async function POST() {
-  const emitProgress = (progress, status) => {
-    thoughtEmitter.emit('sync_progress', { progress, status });
+  const emitProgress = (progress, status, success = false) => {
+    thoughtEmitter.emit('seed_progress', { progress, status, success });
     console.log(`Seed Progress [${progress}%]: ${status}`);
   };
 

@@ -69,7 +69,7 @@ export default function EmailPreviewPage() {
     );
   }
 
-  const { transcript, actions, callStats, repName } = sessionData;
+  const { transcript, actions, callStats, repName, analysis } = sessionData;
 
   const summary = {
     dealsDiscussed: extractDealsDiscussed(transcript, actions),
@@ -78,7 +78,10 @@ export default function EmailPreviewPage() {
       (t.content?.toLowerCase().includes('day') ||
        t.content?.toLowerCase().includes('team') ||
        t.content?.toLowerCase().includes('funny'))
-    ) || false
+    ) || false,
+    repSentiment: analysis?.repSentiment || '',
+    managerNotes: analysis?.managerNotes || '',
+    dealSummaries: analysis?.dealSummaries || {}
   };
 
   const duration = callStats?.duration

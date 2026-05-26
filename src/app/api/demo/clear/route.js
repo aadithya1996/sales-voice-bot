@@ -9,8 +9,8 @@ import thoughtEmitter from '../../../../lib/thought-emitter';
  * Uses the demo_records tracking table to know exactly what was created.
  */
 export async function POST() {
-  const emitProgress = (progress, status) => {
-    thoughtEmitter.emit('sync_progress', { progress, status });
+  const emitProgress = (progress, status, success = false) => {
+    thoughtEmitter.emit('clear_progress', { progress, status, success });
     console.log(`Clear Progress [${progress}%]: ${status}`);
   };
 
@@ -21,7 +21,8 @@ export async function POST() {
     const records = db.getAllDemoRecords();
 
     if (records.length === 0) {
-      emitProgress(100, 'No previous demo data found. HubSpot is clean.', { success: true, cleared: 0 });
+      db.clearAllLocalData();
+      emitProgress(100, 'No previous demo data found. HubSpot is clean.', true);
       return NextResponse.json({
         success: true,
         message: 'No previous demo data to clear.',
@@ -65,15 +66,15 @@ export async function POST() {
       }
     }
 
-    // Clear the tracking table
-    db.clearAllDemoRecords();
+    // Wipes out all local SQLite tables (contacts, deals, stages, notes, classifications, actions, transcripts)
+    db.clearAllLocalData();
 
     const totalDeleted = deletedContacts + deletedDeals;
-    emitProgress(100, `Cleanup complete! Removed ${totalDeleted} demo records from HubSpot.`, { success: true, cleared: totalDeleted });
+    emitProgress(100, `Cleanup complete! Removed ${totalDeleted} demo records from HubSpot.`, true);
 
     return NextResponse.json({
       success: true,
-      message: `Cleared ${totalDeleted} demo records from HubSpot (${deletedContacts} contacts, ${deletedDeals} deals).`,
+      message: `Cleared ${totalDeleted} demo records from HubSpot (${deletedContacts} contacts, ${deletedDeals} deals) and cleaned local DB.`,
       cleared: totalDeleted,
       contacts: deletedContacts,
       deals: deletedDeals,

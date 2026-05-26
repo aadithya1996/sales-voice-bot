@@ -37,13 +37,15 @@ export function buildEmailHtml({ subject, dealsDiscussed, actionsList, completed
   const dealsSection = dealsDiscussed.length > 0
     ? dealsDiscussed.map((d, idx) => {
         const borderColor = idx === 0 ? '#ef4444' : idx === 1 ? '#f97316' : idx === 2 ? '#f5a623' : '#94a3b8';
+        const dealSummaryText = summary?.dealSummaries?.[d] || 'No specific updates recorded.';
         return `
           <tr>
             <td style="padding:0 0 10px 0;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td style="background:#ffffff;border:1px solid #eaeaea;border-radius:10px;padding:14px 18px;border-left:4px solid ${borderColor};">
-                    <p style="font-size:14px;font-weight:700;color:#1a1a2e;margin:0;">${d}</p>
+                    <p style="font-size:14px;font-weight:700;color:#1a1a2e;margin:0 0 6px 0;">${d}</p>
+                    <p style="font-size:13px;color:#555;margin:0;line-height:1.5;">${escapeHtml(dealSummaryText)}</p>
                   </td>
                 </tr>
               </table>
@@ -144,21 +146,24 @@ export function buildEmailHtml({ subject, dealsDiscussed, actionsList, completed
       </td>
     </tr>`;
 
-  const rapportSection = summary?.rapport ? `
+  const rapportSection = `
     <tr>
       <td style="padding:0 0 32px 0;">
-        <p style="font-size:12px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 14px 0;">Team Pulse</p>
+        <p style="font-size:12px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 14px 0;">Rep Sentiment & Manager Updates</p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr>
             <td style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:16px 20px;">
-              <p style="font-size:14px;color:#92400e;margin:0;line-height:1.6;">
-                🌟 ${repName || 'Sales Rep'} shared team updates, shout-outs, and day highlights during the rapport check-in. Team morale appears positive.
+              <p style="font-size:13px;color:#92400e;margin:0 0 8px 0;line-height:1.5;">
+                <strong>Sentiment:</strong> ${escapeHtml(summary?.repSentiment || 'Positive and focused, with usual pipeline velocity.')}
+              </p>
+              <p style="font-size:13px;color:#92400e;margin:0;line-height:1.5;">
+                <strong>Notes to Manager:</strong> ${escapeHtml(summary?.managerNotes || 'No specific instructions conveyed.')}
               </p>
             </td>
           </tr>
         </table>
       </td>
-    </tr>` : '';
+    </tr>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -275,7 +280,10 @@ export function buildEmailText({ subject, dealsDiscussed, actionsList, completed
   });
 
   const dealsText = dealsDiscussed.length > 0
-    ? dealsDiscussed.map((d, i) => `${i + 1}. ${d}`).join('\n')
+    ? dealsDiscussed.map((d, i) => {
+        const dealSummaryText = summary?.dealSummaries?.[d] || 'No specific updates recorded.';
+        return `${i + 1}. ${d}\n   Update: ${dealSummaryText}`;
+      }).join('\n\n')
     : 'No deals were discussed.';
 
   const actionsText = actionsList.length > 0
@@ -331,12 +339,13 @@ CRM WRITE-BACK STATUS
 ${completedActions.length} of ${actionsList.length} actions written back to HubSpot.
 ${pendingActions.length > 0 ? `${pendingActions.length} action(s) still pending sync.` : 'All actions synced successfully.'}
 
-${summary?.rapport ? `═════════════════════════════════════════
-TEAM PULSE
 ═════════════════════════════════════════
-${repName || 'Sales Rep'} shared team updates, shout-outs, and day highlights during the rapport check-in. Team morale appears positive.
+REP SENTIMENT & MANAGER UPDATES
+═════════════════════════════════════════
+Sentiment:      ${summary?.repSentiment || 'Positive and focused, with usual pipeline velocity.'}
+Notes to Manager: ${summary?.managerNotes || 'No specific instructions conveyed.'}
 
-` : ''}═════════════════════════════════════════
+═════════════════════════════════════════
 Sent by Pipeline Pilot AI Assistant
 This is an automated summary of a daily pipeline review.
 `;

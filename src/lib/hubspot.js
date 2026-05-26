@@ -9,7 +9,6 @@ class HubSpotService {
       this.client = new hubspot.Client({ accessToken: this.token });
     } else {
       console.log('HubSpotService initialized in MOCK mode.');
-      // Initialize internal in-memory state for mock mode
       this._initMocks();
     }
   }
@@ -53,12 +52,34 @@ class HubSpotService {
     ];
   }
 
-  async getAllContacts() {
+  async _runWithFallback(fn) {
     if (this.isMock) {
-      return this.mockContacts;
+      return fn();
     }
-
     try {
+      return await fn();
+    } catch (err) {
+      const is401 = err.code === 401 || 
+                    err.statusCode === 401 || 
+                    err.status === 401 ||
+                    (err.message && err.message.includes('401')) ||
+                    (err.body && err.body.status === 'error' && err.body.category === 'INVALID_AUTHENTICATION');
+      if (is401) {
+        console.warn('HubSpot API returned 401 Unauthorized. Dynamically switching HubSpotService to MOCK mode.');
+        this.isMock = true;
+        this._initMocks();
+        return fn();
+      }
+      throw err;
+    }
+  }
+
+  async getAllContacts() {
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        return this.mockContacts;
+      }
+
       const allContacts = [];
       let after = undefined;
       let hasMore = true;
@@ -84,24 +105,20 @@ class HubSpotService {
         hubspot_id: c.id,
         created_at: c.properties.createdate || new Date().toISOString()
       }));
-    } catch (err) {
-      console.error('Error fetching HubSpot contacts:', err);
-      throw err;
-    }
+    });
   }
 
   async getAllDeals() {
-    if (this.isMock) {
-      return this.mockDeals;
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        return this.mockDeals;
+      }
 
-    try {
       const allDeals = [];
       let after = undefined;
       let hasMore = true;
 
       while (hasMore) {
-        // Fetch deals with contact associations
         const response = await this.client.crm.deals.basicApi.getPage(
           100,
           after,
@@ -116,7 +133,6 @@ class HubSpotService {
 
       return allDeals.map(d => {
         const contactAssoc = d.associations?.contacts?.results?.[0];
-        // Calculate custom days in stage based on last modification as a heuristic
         const createdDate = new Date(d.properties.createdate);
         const lastModDate = new Date(d.properties.hs_lastmodifieddate || d.properties.createdate);
         const daysInStage = Math.max(1, Math.round((new Date() - lastModDate) / (1000 * 60 * 60 * 24)));
@@ -135,26 +151,29 @@ class HubSpotService {
           updated_at: d.properties.hs_lastmodifieddate || d.properties.createdate
         };
       });
-    } catch (err) {
-      console.error('Error fetching HubSpot deals:', err);
-      throw err;
-    }
+    });
   }
 
   async getDealNotes(dealId) {
-    if (this.isMock) {
-      return this.mockNotes.filter(n => n.deal_id === dealId);
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        return this.mockNotes.filter(n => n.deal_id === dealId);
+      }
 
-    try {
-      // Fetch note associations via v4 API (results have toObjectId, not id)
       const assocResponse = await fetch(
         `https://api.hubapi.com/crm/v4/objects/deals/${dealId}/associations/notes`,
         {
           headers: { Authorization: `Bearer ${this.token}` }
         }
       );
-      if (!assocResponse.ok) return [];
+      if (!assocResponse.ok) {
+        if (assocResponse.status === 401) {
+          const err = new Error('HTTP-Code: 401');
+          err.status = 401;
+          throw err;
+        }
+        return [];
+      }
       const assocData = await assocResponse.json();
       
       const noteIds = (assocData.results || [])
@@ -171,7 +190,14 @@ class HubSpotService {
               headers: { Authorization: `Bearer ${this.token}` }
             }
           );
-          if (!noteRes.ok) continue;
+          if (!noteRes.ok) {
+            if (noteRes.status === 401) {
+              const err = new Error('HTTP-Code: 401');
+              err.status = 401;
+              throw err;
+            }
+            continue;
+          }
           const note = await noteRes.json();
           notesDetails.push({
             id: note.id,
@@ -181,23 +207,21 @@ class HubSpotService {
             hubspot_id: note.id
           });
         } catch (e) {
+          if (e.status === 401) throw e;
           console.warn(`Skipping note ${noteId}:`, e.message);
         }
       }
 
       return notesDetails;
-    } catch (err) {
-      console.error(`Error fetching notes for deal ${dealId}:`, err);
-      return [];
-    }
+    });
   }
 
   async getPipelines() {
-    if (this.isMock) {
-      return this.mockPipelines;
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        return this.mockPipelines;
+      }
 
-    try {
       const response = await this.client.crm.pipelines.pipelinesApi.getAll('deals');
       return response.results.map(p => ({
         id: p.id,
@@ -208,49 +232,42 @@ class HubSpotService {
           displayOrder: s.displayOrder || idx + 1
         }))
       }));
-    } catch (err) {
-      console.error('Error fetching HubSpot pipelines:', err);
-      throw err;
-    }
+    });
   }
 
   async updateDealStage(dealId, stageId) {
-    if (this.isMock) {
-      const deal = this.mockDeals.find(d => d.id === dealId);
-      if (deal) {
-        deal.dealstage = stageId;
-        deal.updated_at = new Date().toISOString();
-        deal.days_in_stage = 0; // reset
-        return deal;
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        const deal = this.mockDeals.find(d => d.id === dealId);
+        if (deal) {
+          deal.dealstage = stageId;
+          deal.updated_at = new Date().toISOString();
+          deal.days_in_stage = 0;
+          return deal;
+        }
+        throw new Error(`Deal ${dealId} not found`);
       }
-      throw new Error(`Deal ${dealId} not found`);
-    }
 
-    try {
       const response = await this.client.crm.deals.basicApi.update(dealId, {
         properties: { dealstage: stageId }
       });
       return response;
-    } catch (err) {
-      console.error(`Error updating stage for deal ${dealId}:`, err);
-      throw err;
-    }
+    });
   }
 
   async addNoteToDeal(dealId, body) {
-    if (this.isMock) {
-      const newNote = {
-        id: 'n' + (this.mockNotes.length + 1),
-        deal_id: dealId,
-        body: body,
-        timestamp: new Date().toISOString()
-      };
-      this.mockNotes.push(newNote);
-      return newNote;
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        const newNote = {
+          id: 'n' + (this.mockNotes.length + 1),
+          deal_id: dealId,
+          body: body,
+          timestamp: new Date().toISOString()
+        };
+        this.mockNotes.push(newNote);
+        return newNote;
+      }
 
-    try {
-      // 1. Create a note object via REST API (hs_timestamp is required)
       const noteResponse = await this._hubspotPost('/crm/v3/objects/notes', {
         properties: {
           hs_note_body: body,
@@ -258,7 +275,6 @@ class HubSpotService {
         }
       });
       
-      // 2. Associate the note with the deal via REST API (v4 expects array)
       await this._hubspotPut(`/crm/v4/objects/notes/${noteResponse.id}/associations/deals/${dealId}`, [
         {
           associationCategory: 'HUBSPOT_DEFINED',
@@ -272,13 +288,9 @@ class HubSpotService {
         body,
         timestamp: noteResponse.createdAt || new Date().toISOString()
       };
-    } catch (err) {
-      console.error(`Error adding note to deal ${dealId}:`, err);
-      throw err;
-    }
+    });
   }
 
-  // Direct REST API helpers for create operations (more reliable than SDK wrappers across versions)
   async _hubspotPost(endpoint, payload) {
     const url = `https://api.hubapi.com${endpoint}`;
     const res = await fetch(url, {
@@ -291,7 +303,9 @@ class HubSpotService {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`HTTP-Code: ${res.status}\nMessage: ${text}`);
+      const err = new Error(`HTTP-Code: ${res.status}\nMessage: ${text}`);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }
@@ -308,55 +322,52 @@ class HubSpotService {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`HTTP-Code: ${res.status}\nMessage: ${text}`);
+      const err = new Error(`HTTP-Code: ${res.status}\nMessage: ${text}`);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }
 
-  // Create demo dataset helpers (used by seed route)
   async createContact(props) {
-    if (this.isMock) {
-      const newContact = {
-        id: 'c' + (this.mockContacts.length + 1),
-        ...props,
-        created_at: new Date().toISOString()
-      };
-      this.mockContacts.push(newContact);
-      return newContact;
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        const newContact = {
+          id: 'c' + (this.mockContacts.length + 1),
+          ...props,
+          created_at: new Date().toISOString()
+        };
+        this.mockContacts.push(newContact);
+        return newContact;
+      }
 
-    try {
       const response = await this._hubspotPost('/crm/v3/objects/contacts', {
         properties: props
       });
       return { id: response.id, ...response.properties };
-    } catch (err) {
-      console.error('Error creating contact:', err);
-      throw err;
-    }
+    });
   }
 
   async createDeal(props, contactId) {
-    if (this.isMock) {
-      const newDeal = {
-        id: 'd' + (this.mockDeals.length + 1),
-        ...props,
-        contact_id: contactId,
-        days_in_stage: 1,
-        last_activity: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      this.mockDeals.push(newDeal);
-      return newDeal;
-    }
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        const newDeal = {
+          id: 'd' + (this.mockDeals.length + 1),
+          ...props,
+          contact_id: contactId,
+          days_in_stage: 1,
+          last_activity: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.mockDeals.push(newDeal);
+        return newDeal;
+      }
 
-    try {
       const dealResponse = await this._hubspotPost('/crm/v3/objects/deals', {
         properties: props
       });
 
-      // Associate deal with contact (v4 API expects array of specs)
       if (contactId) {
         await this._hubspotPut(`/crm/v4/objects/deals/${dealResponse.id}/associations/contacts/${contactId}`, [
           {
@@ -367,50 +378,41 @@ class HubSpotService {
       }
 
       return { id: dealResponse.id, ...dealResponse.properties };
-    } catch (err) {
-      console.error('Error creating deal:', err);
-      throw err;
-    }
+    });
   }
 
   async archiveContact(id) {
-    if (this.isMock) {
-      this.mockContacts = this.mockContacts.filter(c => c.id !== id);
-      this.mockDeals = this.mockDeals.filter(d => d.contact_id !== id);
-      return true;
-    }
-    try {
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        this.mockContacts = this.mockContacts.filter(c => c.id !== id);
+        this.mockDeals = this.mockDeals.filter(d => d.contact_id !== id);
+        return true;
+      }
       await this.client.crm.contacts.basicApi.archive(id);
       return true;
-    } catch (err) {
-      console.error(`Error archiving contact ${id}:`, err);
-      return false;
-    }
+    });
   }
 
   async archiveDeal(id) {
-    if (this.isMock) {
-      this.mockDeals = this.mockDeals.filter(d => d.id !== id);
-      return true;
-    }
-    try {
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        this.mockDeals = this.mockDeals.filter(d => d.id !== id);
+        return true;
+      }
       await this.client.crm.deals.basicApi.archive(id);
       return true;
-    } catch (err) {
-      console.error(`Error archiving deal ${id}:`, err);
-      return false;
-    }
+    });
   }
 
   async searchByProperty(objectType, property, value) {
-    if (this.isMock) {
-      if (objectType === 'contacts') {
-        return this.mockContacts.filter(c => c[property] === value);
+    return this._runWithFallback(async () => {
+      if (this.isMock) {
+        if (objectType === 'contacts') {
+          return this.mockContacts.filter(c => c[property] === value);
+        }
+        return [];
       }
-      return [];
-    }
 
-    try {
       const response = await this.client.crm.contacts.searchApi.doSearch({
         filterGroups: [
           {
@@ -425,10 +427,7 @@ class HubSpotService {
         ]
       });
       return response.results;
-    } catch (err) {
-      console.error(`Error searching ${objectType} by ${property}:`, err);
-      return [];
-    }
+    });
   }
 }
 

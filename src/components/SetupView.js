@@ -174,29 +174,48 @@ export default function SetupView({
             </div>
           </div>
 
-          {/* Recent CRM Changes Section */}
-          <div className="glass-panel" style={{ padding: '20px', flex: 1 }}>
-            <h4 style={{ fontSize: '1.05rem', marginBottom: '16px' }}>⚡ What&apos;s Changed (Last 24 Hours)</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '10px' }}>
-                <div style={{ color: 'var(--healthy)', fontSize: '1.25rem' }}>✓</div>
-                <div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>DataFlow Analytics Upgrade closed won!</span>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Priya Patel pushed contract approval. Value: $32,000.</p>
-                </div>
+          {/* Strategic Feature Vision & Value */}
+          <div className="glass-panel" style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              🚀 Daily Review Focus Room Strategy
+            </h4>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem', lineHeight: 1.5 }}>
+              <div>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>📅 The Calendar Standup Workflow</strong>
+                <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                  Automated calendar sync places a direct review link in the sales rep's daily standup event. Clicking the link opens this **Pipeline Review Focus Room** where the voice AI (Alex) leads a review of prioritized deals and contacts.
+                </p>
               </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '10px' }}>
-                <div style={{ color: 'var(--in-progress)', fontSize: '1.25rem' }}>➔</div>
-                <div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>TechCorp platform stale 12 days</span>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Moved into high-urgency class; awaiting custom integrations demo.</p>
-                </div>
+
+              <div>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>⚙️ Write-Back & Forecast Readiness</strong>
+                <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                  Reps talk naturally with the bot. The transcript is transcribed in real-time, converted into action queues, and synced back to HubSpot, followed by a summary email to their manager. This workflow can also run pipeline forecast reviews.
+                </p>
               </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div style={{ color: 'var(--attention)', fontSize: '1.25rem' }}>✍</div>
-                <div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Acme security audit review slow</span>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Marcus indicated procurement will take until end of month.</p>
+
+              <div>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>💡 Business Value to the CRM</strong>
+                <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <li><b>Frictionless updates</b> keep CRM data highly accurate, driving higher software engagement and stickiness.</li>
+                  <li><b>Daily manager reporting</b> enforces rep accountability without manual micro-management.</li>
+                  <li><b>AI focus rooms</b> differentiate the CRM from standard databases.</li>
+                </ul>
+              </div>
+
+              <div style={{
+                background: 'rgba(245, 166, 35, 0.05)',
+                border: '1px solid rgba(245, 166, 35, 0.15)',
+                borderRadius: '8px',
+                padding: '12px'
+              }}>
+                <strong style={{ color: 'var(--accent-primary)', display: 'block', marginBottom: '6px', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  🎯 North Star Metric
+                </strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <span><b>Standup Review Completion Rate (SRCR):</b> The % of scheduled review calls completed by reps each week.</span>
+                  <span><b>Manual CRM Time Saved:</b> Hours of admin data entry saved (estimated as 5 mins per sync action).</span>
                 </div>
               </div>
             </div>
