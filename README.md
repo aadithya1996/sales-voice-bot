@@ -1,6 +1,6 @@
 # Pipeline Pilot
 
-Pipeline Pilot is an AI-powered morning standup and pipeline review focus room for sales teams. 
+Pipeline Pilot is an AI-powered sales standup and pipeline review focus room for sales teams. 
 
 ## 🚀 Core Feature Concept
 * **Automated Calendar Standup:** Integrates with the sales rep's calendar to automatically insert a custom review focus room link into their daily morning standup event.
